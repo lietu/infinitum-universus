@@ -10,16 +10,16 @@ import math
 class StarGenerator(object):
     def __init__(self):
         # Number of stars in the core (Example: 2000)
-        self.hub_stars = 2000
+        self.hub_stars = 5000
 
         # Number of stars in the disk (Example: 4000)
         self.disk_stars = 15000
 
         # Radius of the disk (Example: 90.0)
-        self.disk_radius = 1700000000000.0
+        self.disk_radius = 1400000000000.0
 
         # Radius of the hub (Example: 45.0)
-        self.hub_radius = 457000000000.0
+        self.hub_radius = 857000000000.0
 
         # Number of arms (Example: 3)
         self.arms = 3
