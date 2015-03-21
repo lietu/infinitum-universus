@@ -1,0 +1,28 @@
+{
+  "name": "Infinitum Universus",
+  "version": "1.0.0",
+  "dependencies": {
+    "requirejs": "2.1.15",
+    "pixi.js": "2.2.3",
+    "fpsmeter": "0.3.1",
+    "sockjs": "0.3.4",
+    "momentjs": "2.9.0"
+  },
+  "main": "www/js/main.js",
+  "moduleType": [
+    "amd"
+  ],
+  "authors": [
+    "Lietu"
+  ],
+  "license": "new BSD and MIT",
+  "private": false,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "www/lib",
+    "test",
+    "tests"
+  ]
+}
