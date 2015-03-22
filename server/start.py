@@ -14,18 +14,11 @@ if __name__ == "__main__":
     logger.info("Starting to listen for connections")
     app.listen(8000)
 
-    try:
-        loop = ioloop.IOLoop.instance()
+    loop = ioloop.IOLoop.instance()
 
-        logger.info("Creating periodic callback")
-        pc = ioloop.PeriodicCallback(main_loop, 1000/8)
-        pc.start()
+    logger.info("Creating periodic callback")
+    pc = ioloop.PeriodicCallback(main_loop, 1000/8)
+    pc.start()
 
-        logger.info("Starting IOLoop")
-        loop.start()
-    except KeyboardInterrupt:
-        import pdb
-
-        pdb.set_trace()
-
-        print("foo")
+    logger.info("Starting IOLoop")
+    loop.start()
