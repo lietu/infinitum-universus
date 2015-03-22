@@ -1,4 +1,4 @@
-define(["utils", "star"], function (Utils, Star) {
+define(["utils", "stars"], function (Utils, Stars) {
     var World = Utils.extend(null, {
         cls: "World",
 
@@ -18,7 +18,8 @@ define(["utils", "star"], function (Utils, Star) {
             this.height = data.height;
             this.stars = {};
             for (var id in data.stars) {
-                this.stars[id] = Star.create(id, data.stars[id]);
+                var star = data.stars[id];
+                this.stars[id] = Stars[star.type].create(id, star);
             }
         }
     });

@@ -27,10 +27,10 @@ class ServerDisconnect(ServerMessage):
 
 
 class PlayerRegistered(ServerMessage):
-    DATA_KEYS = ["player_id"]
+    DATA_KEYS = ["id"]
 
-    def __init__(self, player_id):
-        self.player_id = player_id
+    def __init__(self, id):
+        self.id = id
 
 
 class WorldData(ServerMessage):
@@ -38,6 +38,16 @@ class WorldData(ServerMessage):
 
     def __init__(self, data):
         self.data = data
+
+
+class PlayerDataUpdate(ServerMessage):
+    DATA_KEYS = ["units"]
+
+    def __init__(self, units):
+        self.units = {}
+
+        for id in units:
+            self.units[id] = units[id].to_dict()
 
 
 class GameTime(ServerMessage):
@@ -71,13 +81,25 @@ class RegisterPlayer(ClientMessage):
 
         super(RegisterPlayer, self).__init__(game, connection_id, data)
 
-        if not self.player_id:
-            self.player_id = "player_{}".format(uuid())
-
     def process(self):
         self.game.register_player(self.player_id, self.connection_id)
 
 
-CLIENT_MESSAGES = {
-    "RegisterPlayer": RegisterPlayer
-}
+class PlayerClick(ClientMessage):
+    VALID_DATA_KEYS = ["x", "y"]
+
+    def __init__(self, game, connection_id, data):
+        self.connection_id = connection_id
+        self.x = None
+        self.y = None
+
+        super(PlayerClick, self).__init__(game, connection_id, data)
+
+    def process(self):
+        player_id = self.game.connection_player[self.connection_id]
+        self.game.players[player_id].click(self.x, self.y)
+
+
+CLIENT_MESSAGES = {}
+for subclass in ClientMessage.__subclasses__():
+    CLIENT_MESSAGES[subclass.__name__] = subclass

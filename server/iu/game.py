@@ -1,37 +1,122 @@
+import math
+import random
 import iu.messages
-from iu.utils import uuid
+from iu.objects import GameObject
+from iu.stars import STAR_CHOICES
+from iu.utils import uuid, weighted_choice, Coords, within_bounds
 from iu.worldgenerator import StarGenerator
 
 
-class GameObject(object):
+class Unit(GameObject):
+    BASE_HEALTH = 0
+
+    def __init__(self, owner, position):
+        self.id = "{}_{}".format(
+            self.__class__.__name__,
+            uuid()
+        )
+
+        self.owner = owner
+        self.position = position
+        self.health = self.BASE_HEALTH
+        self.target = None
+        self.velocity = 0
+        self.direction = Coords(0, 0)
+
+        self.action_queue = []
+
+    def to_dict(self):
+        data = {
+            "id": self.id,
+            "type": self.__class__.__name__,
+            "owner": self.owner.id,
+            "position": self.position.to_dict(),
+            "health": self.health
+        }
+
+        return data
+
+    def set_target(self, target):
+        if not self.target:
+            self.set_active_target(target)
+        else:
+            self.action_queue.append(target)
+
+    def set_active_target(self, target):
+        self.target = target
+
+        distance = (
+            self.target.x - self.position.x,
+            self.target.y - self.position.y
+        )
+
+        normal = math.sqrt(distance[0] ** 2.0 + distance[1] ** 2.0)
+
+        self.direction.x = distance[0] / normal
+        self.direction.y = distance[1] / normal
+
+    def target_reached(self):
+        if self.action_queue:
+            self.set_active_target(self.action_queue.pop(0))
+        else:
+            self.set_velocity(0)
+            self.target = None
+
+    def set_velocity(self, velocity):
+        """
+        Set the unit's velocity towards it's target, in light seconds/s
+        :param float velocity:
+        :return:
+        """
+        self.velocity = velocity
+
     def update(self, time_elapsed):
-        pass
+        origin = self.position.clone()
+
+        if self.target:
+            target_reached = False
+            distance = time_elapsed * self.velocity
+
+            destination = Coords(
+                self.position.x + (self.direction.x * distance),
+                self.position.y + (self.direction.y * distance),
+            )
+
+            if within_bounds(self.target, origin, destination):
+                destination = self.target
+                target_reached = True
+
+            self.position.x = destination.x
+            self.position.y = destination.y
+
+            if target_reached:
+                self.target_reached()
+
+
+class SpaceShip(Unit):
+    BASE_HEALTH = 5
 
 
 class Player(GameObject):
     def __init__(self, id, connection_id):
         self.id = id
         self.connection_id = connection_id
-
         self.known_data = {}
+        self.units = {}
 
+    def get_units(self):
+        return self.units
 
-class Star(GameObject):
-    def __init__(self, id, x, y):
-        self.id = id
-        self.x = x
-        self.y = y
+    def click(self, x, y):
+        target = Coords(x, y)
+        for unit_id in self.units:
+            self.units[unit_id].set_target(target)
+            self.units[unit_id].set_velocity(1024)
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "x": self.x,
-            "y": self.y,
-            "planets": []
-        }
-
-    def generate_planets(self):
-        pass
+    def get_data_update_message(self):
+        return iu.messages.PlayerDataUpdate(
+            units=self.get_units()
+        )
 
 
 class World(GameObject):
@@ -49,16 +134,22 @@ class World(GameObject):
         self.stars = []
 
     def generate(self):
-
         generator = StarGenerator()
 
         def add_star(x, y):
             star_id = "star_{}".format(uuid())
-            star = Star(star_id, x, y)
+            star_class = weighted_choice(STAR_CHOICES)
+            star = star_class(star_id, x, y)
             star.generate_planets()
             self.stars.append(star)
 
-        generator.generateStars(add_star)
+        generator.generate_stars(add_star)
+
+    def get_random_coords(self):
+        return Coords(
+            x=random.randint(self.SIZE_X * -0.5, self.SIZE_X * 0.5),
+            y=random.randint(self.SIZE_Y * -0.5, self.SIZE_Y * 0.5)
+        )
 
     def get_public_data(self):
         return {
@@ -74,7 +165,9 @@ class Game(object):
     def __init__(self, logger):
         self.logger = logger
 
+        self.connection_player = {}
         self.players = {}
+        self.units = {}
         self.world = World()
         self.messages = {}
 
@@ -92,15 +185,18 @@ class Game(object):
         """
 
         game_time_elapsed = real_time_elapsed * self.time_factor
+        self.game_time += game_time_elapsed
 
         self.world.update(game_time_elapsed)
 
-        self.game_time += game_time_elapsed
+        for unit_id in self.units:
+            self.units[unit_id].update(game_time_elapsed)
 
         for player_id in self.players:
             player = self.players[player_id]
             player.update(game_time_elapsed)
             self.add_message(player, iu.messages.GameTime(self.game_time))
+            self.add_message(player, player.get_data_update_message())
 
     def get_world_data(self):
         """
@@ -118,7 +214,9 @@ class Game(object):
         :return:
         """
 
-        if not player_id in self.players:
+        if not player_id or player_id not in self.players:
+            player_id = "player_{}".format(uuid())
+
             self.logger.info("New player with ID {}".format(
                 player_id
             ))
@@ -127,6 +225,10 @@ class Game(object):
                 player.id
             ))
             self.players[player_id] = player
+
+            ship = SpaceShip(player, Coords(0,0))
+            player.units[ship.id] = ship
+            self.units[ship.id] = ship
         else:
             self.logger.info("Existing player {} reconnected".format(
                 player_id
@@ -140,6 +242,12 @@ class Game(object):
         self.add_message(player, iu.messages.WorldData(
             self.get_world_data()
         ))
+
+        self.add_message(player, iu.messages.PlayerDataUpdate(
+            units=player.get_units()
+        ))
+
+        self.connection_player[connection_id] = player_id
 
     def add_message(self, player, message):
         """

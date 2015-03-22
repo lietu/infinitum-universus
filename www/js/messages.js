@@ -27,12 +27,17 @@ define(["utils"], function (Utils) {
         }),
         "PlayerRegistered": Utils.extend(Message, {
             process: function process() {
-                // TODO: Save player ID
+                this.game.setPlayerId(this.data.id);
             }
         }),
         "WorldData": Utils.extend(Message, {
             process: function process() {
                 this.game.setWorldData(this.data.data);
+            }
+        }),
+        "PlayerDataUpdate": Utils.extend(Message, {
+            process: function process() {
+                this.game.player.update(this.data);
             }
         })
     };

@@ -13,6 +13,7 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             this.staticElements = {};
             this.elements = {};
             this.backgroundColor = 0x020025;
+            this.textures = {};
 
             this.worldLimits = null;
 
@@ -51,20 +52,6 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             } else {
                 this.viewport.move(0, 0);
             }
-        },
-
-        loadTextures: function loadTexture() {
-            var assets = ["star"];
-
-            this.textures = {};
-
-            for (var i = 0, count = assets.length; i < count; i += 1) {
-                var id = assets[i];
-                this.textures[id] = PIXI.Texture.fromImage(
-                    this.game.getImage(id)
-                );
-            }
-
         },
 
         initPixi: function initPixi() {
@@ -115,6 +102,7 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
 
             this._registerMapDrag();
             this._registerMapZoom();
+            this._registerMapClick();
         },
 
         resize: function resize(skipPixi) {
@@ -137,6 +125,37 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
 
         setViewportWidth: function setViewportWidth(lightseconds) {
             this.staticElements.viewportWidth.setText(Utils.distanceToText(lightseconds));
+        },
+
+        tick: function tick() {
+
+            if (this.move.x || this.move.y) {
+                var move = this.move;
+                this.move = {x: 0, y: 0};
+                this.viewport.movePixels(move.x, move.y);
+            }
+
+            this._recalculateDynamicElements();
+
+            this.stage.addChild(this.staticElements.viewportWidth);
+
+            this.stage.addChild(this.staticElements.gameTime);
+            this.elements.viewportWidth = this.staticElements.viewportWidth;
+
+            this.elements.gameTime = this.staticElements.gameTime;
+            this.pixiRenderer.render(this.stage);
+
+            this.meter.tick();
+        },
+
+        getTexture: function getTexture(name) {
+            if (!(name in this.textures)) {
+                this.textures[name] = PIXI.Texture.fromImage(
+                    this.game.getImage(name)
+                );
+            }
+
+            return this.textures[name];
         },
 
         _registerMapDrag: function _registerMapDrag() {
@@ -205,23 +224,16 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             document.addEventListener("mousewheel", _onScroll, false);
         },
 
-        tick: function tick() {
-            if (this.move.x || this.move.y) {
-                var move = this.move;
-                this.move = {x: 0, y: 0};
-                this.viewport.movePixels(move.x, move.y);
-            }
-
-            this._recalculateDynamicElements();
-
-            this.stage.addChild(this.staticElements.viewportWidth);
-            this.stage.addChild(this.staticElements.gameTime);
-
-            this.elements.viewportWidth = this.staticElements.viewportWidth;
-            this.elements.gameTime = this.staticElements.gameTime;
-
-            this.pixiRenderer.render(this.stage);
-            this.meter.tick();
+        _registerMapClick: function _registerMapClick() {
+            this.stage.click = function(data) {
+                var pos = {x: data.global.x, y: data.global.y};
+                var worldPos = this._rendererToWorld(pos.x, pos.y);
+                this.game.connection.send(JSON.stringify({
+                    "type": "PlayerClick",
+                    "x": worldPos.x,
+                    "y": worldPos.y
+                }));
+            }.bind(this);
         },
 
         _recalculateDynamicElements: function _recalculateDynamicElements() {
@@ -253,7 +265,7 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
                     throw e;
                 }
 
-                var element = new PIXI.Sprite(this.textures.star);
+                var element = new PIXI.Sprite(this.getTexture(star.texture));
 
                 element.position.x = pos.x;
                 element.position.y = pos.y;
@@ -267,6 +279,31 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
                 this.stage.addChild(element);
 
                 stars++;
+            }
+
+            for (var id in this.game.player.units) {
+                var ship = this.game.player.units[id];
+
+                if (ship.position.x < vp.minX || ship.position.x > vp.maxX ||
+                    ship.position.y < vp.minY || ship.position.y > vp.maxY) {
+                    continue;
+                }
+
+                var pos = this._worldToRenderer(ship.position.x, ship.position.y);
+
+                var element = new PIXI.Sprite(this.getTexture("space-ship"));
+
+                element.position.x = pos.x;
+                element.position.y = pos.y;
+
+                element.anchor.x = 0.5;
+                element.anchor.y = 0.5;
+
+                element.scale.x = 1.5;
+                element.scale.y = 1.5;
+
+                this.elements[id] = element;
+                this.stage.addChild(element);
             }
 
             // console.log("Rendering " + stars + " stars");
@@ -300,8 +337,25 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
                     this.resolution.height
                 )
             }
+        },
+
+        _rendererToWorld: function _rendererToWorld(x, y) {
+            return {
+                x: this.viewport.minX + this._translate(
+                    x,
+                    0,
+                    this.resolution.width,
+                    this.viewport.maxX - this.viewport.minX
+                ),
+                y: this.viewport.minY + this._translate(
+                    y,
+                    0,
+                    this.resolution.height,
+                    this.viewport.maxY - this.viewport.minY
+                )
+            }
         }
     });
 
     return Renderer;
-})
+});

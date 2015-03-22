@@ -23,5 +23,22 @@ define(["utils", "planet"], function (Utils, Planet) {
         }
     });
 
-    return Star;
-})
+    return {
+        "YellowDwarf": Utils.extend(Star, {
+            cls: "YellowDwarf",
+            texture: "yellow-dwarf"
+        }),
+        "RedDwarf": Utils.extend(Star, {
+            cls: "RedDwarf",
+            texture: "red-dwarf"
+        }),
+        "RedGiant": Utils.extend(Star, {
+            cls: "RedGiant",
+            texture: "red-giant"
+        }),
+        "BlueGiant": Utils.extend(Star, {
+            cls: "BlueGiant",
+            texture: "blue-giant"
+        })
+    };
+});

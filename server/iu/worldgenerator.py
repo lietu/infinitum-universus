@@ -34,7 +34,7 @@ class StarGenerator(object):
         # Maximum outlier distance from arms (Example: 25.0)
         self.fuzz = 35.0
 
-    def generateStars(self, add_star):
+    def generate_stars(self, add_star):
         # omega is the separation (in degrees) between each arm
         # Prevent div by zero error:
         rotation = random.randint(0, 360)

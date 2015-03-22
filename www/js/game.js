@@ -1,9 +1,13 @@
 define([
-    "sockjs", "utils", "messages", "world", "renderer"
-], function (SockJS, Utils, Messages, World, Renderer) {
+    "sockjs", "utils", "messages", "world", "renderer", "player"
+], function (SockJS, Utils, Messages, World, Renderer, Player) {
 
     var assets = {
-        "star": {src: "assets/images/star.png"}
+        "yellow-dwarf": {src: "assets/images/star.png"},
+        "red-dwarf": {src: "assets/images/red-dwarf.png"},
+        "red-giant": {src: "assets/images/red-giant.png"},
+        "blue-giant": {src: "assets/images/blue-giant.png"},
+        "space-ship": {src: "assets/images/space-ship.png"},
     };
 
     var volumes = {
@@ -20,9 +24,10 @@ define([
             Utils.log("Game.initialize");
             this.queue = null;
             this.gameTime = 0;
-            this.world = World.create(this);
 
+            this.world = World.create(this);
             this.renderer = Renderer.create(this);
+            this.player = Player.create(this.getPlayerId());
         },
 
         start: function start() {
@@ -50,7 +55,6 @@ define([
             Utils.log("Game.setup");
             this._connect();
 
-            this.renderer.loadTextures();
             this.tick();
         },
 
@@ -90,12 +94,17 @@ define([
             this.renderer.worldUpdated();
         },
 
+        setPlayerId: function setPlayerId(id) {
+            localStorage.setItem("playerId", id);
+            this.player.id = id;
+        },
+
+        getPlayerId: function getPlayerId() {
+            return localStorage.getItem("playerId");
+        },
+
         _registerPlayer: function _registerPlayer() {
-            var id = localStorage.getItem("playerId");
-            if (!id) {
-                id = "player_" + Utils.getUUID();
-                localStorage.setItem("playerId", id);
-            }
+            var id = this.getPlayerId();
 
             Utils.log("Registering player ID " + id);
 
@@ -130,6 +139,7 @@ define([
                     }
 
                     var message = Messages[data.type].create(game, data);
+
                     setTimeout(function () {
                         message.process();
                     }, 0);
