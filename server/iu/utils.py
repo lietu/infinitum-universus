@@ -1,6 +1,23 @@
 import random
 import logging
 import uuid as _uuid
+from iu.distances import LIGHT_YEAR
+
+ROMAN_NUMBERS = {
+    1: "I",
+    2: "II",
+    3: "III",
+    4: "IV",
+    5: "V",
+    6: "VI",
+    7: "VII",
+    8: "VIII",
+    9: "IX",
+    10: "X",
+    11: "XI",
+    12: "XII",
+    13: "XIII"
+}
 
 
 def _get_logger():
@@ -13,6 +30,59 @@ def _get_logger():
     ))
     _logger.addHandler(ch)
     return _logger
+
+
+def roman(number):
+    return ROMAN_NUMBERS[number]
+
+
+class Map(object):
+    def __init__(self):
+        self.granularity = 10 * LIGHT_YEAR
+        self.data = {}
+
+    def add_item(self, item):
+        x, y = self._get_map_position(item.position)
+
+        if not x in self.data:
+            self.data[x] = {}
+
+        if not y in self.data[x]:
+            self.data[x][y] = []
+
+        self.data[x][y].append(item)
+
+    def get_items(self, corner1, corner2):
+        map_x_1, map_y_1 = self._get_map_position(corner1)
+        map_x_2, map_y_2 = self._get_map_position(corner2)
+
+        found = []
+
+        minx = min(map_x_1, map_x_2)
+        maxx = max(map_x_1, map_x_2)
+
+        miny = min(map_y_1, map_y_2)
+        maxy = max(map_y_1, map_y_2)
+
+        for x in range(minx, maxx + 1):
+            if x not in self.data:
+                continue
+
+            for y in range(miny, maxy + 1):
+                if y not in self.data[x]:
+                    continue
+
+                for item in self.data[x][y]:
+                    if within_bounds(item.position, corner1, corner2):
+                        found.append(item)
+
+        return found
+
+    def _get_map_position(self, coords):
+        return (
+            int(coords.x / self.granularity),
+            int(coords.y / self.granularity)
+        )
 
 
 class Coords(object):

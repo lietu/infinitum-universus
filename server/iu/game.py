@@ -3,19 +3,23 @@ import random
 import iu.messages
 from iu.objects import GameObject
 from iu.stars import STAR_CHOICES
-from iu.utils import uuid, weighted_choice, Coords, within_bounds
+from iu.utils import uuid, weighted_choice, Coords, within_bounds, Map
+from iu.names import get_star_name
+from iu.distances import LIGHT_YEAR
 from iu.worldgenerator import StarGenerator
 
 
 class Unit(GameObject):
     BASE_HEALTH = 0
+    SENSOR_RANGE = 0
 
-    def __init__(self, owner, position):
+    def __init__(self, game, owner, position):
         self.id = "{}_{}".format(
             self.__class__.__name__,
             uuid()
         )
 
+        self.game = game
         self.owner = owner
         self.position = position
         self.health = self.BASE_HEALTH
@@ -92,9 +96,28 @@ class Unit(GameObject):
             if target_reached:
                 self.target_reached()
 
+        self.sensor_sweep()
+
+    def sensor_sweep(self):
+        corner1 = Coords(
+            self.position.x - self.SENSOR_RANGE,
+            self.position.y - self.SENSOR_RANGE
+        )
+
+        corner2 = Coords(
+            self.position.x + self.SENSOR_RANGE,
+            self.position.y + self.SENSOR_RANGE
+        )
+
+        found = self.game.map.get_items(corner1, corner2)
+
+        for item in found:
+            self.owner.learn(item.id, item.get_sensor_data())
+
 
 class SpaceShip(Unit):
     BASE_HEALTH = 5
+    SENSOR_RANGE = 250 * LIGHT_YEAR
 
 
 class Player(GameObject):
@@ -103,6 +126,7 @@ class Player(GameObject):
         self.connection_id = connection_id
         self.known_data = {}
         self.units = {}
+        self.known_data_updates = {}
 
     def get_units(self):
         return self.units
@@ -114,24 +138,26 @@ class Player(GameObject):
             self.units[unit_id].set_velocity(1024)
 
     def get_data_update_message(self):
+        known_data, self.known_data_updates = self.known_data_updates, {}
+
         return iu.messages.PlayerDataUpdate(
-            units=self.get_units()
+            units=self.get_units(),
+            known_data=known_data
         )
+
+    def learn(self, item_id, data):
+        self.known_data[item_id] = data
+        self.known_data_updates[item_id] = data
 
 
 class World(GameObject):
-    LIGHT_SECOND = 1
-    LIGHT_MINUTE = LIGHT_SECOND * 60
-    LIGHT_HOUR = LIGHT_MINUTE * 60
-    LIGHT_DAY = LIGHT_HOUR * 24
-    LIGHT_YEAR = LIGHT_DAY * 365
-
     # Distance units in light seconds
     SIZE_X = 150000 * LIGHT_YEAR
     SIZE_Y = 150000 * LIGHT_YEAR
 
-    def __init__(self):
-        self.stars = []
+    def __init__(self, game):
+        self.game = game
+        self.stars = {}
 
     def generate(self):
         generator = StarGenerator()
@@ -139,9 +165,11 @@ class World(GameObject):
         def add_star(x, y):
             star_id = "star_{}".format(uuid())
             star_class = weighted_choice(STAR_CHOICES)
-            star = star_class(star_id, x, y)
+            name = get_star_name()
+            star = star_class(star_id, name, Coords(x, y))
             star.generate_planets()
-            self.stars.append(star)
+            self.stars[star_id] = star
+            self.game.map.add_item(star)
 
         generator.generate_stars(add_star)
 
@@ -152,14 +180,17 @@ class World(GameObject):
         )
 
     def get_public_data(self):
+        stars = {}
+
+        for id in self.stars:
+            stars[id] = self.stars[id].to_dict()
+
         return {
             "width": self.SIZE_X,
             "height": self.SIZE_Y,
-            "stars": [
-                star.to_dict()
-                for star in self.stars
-            ],
+            "stars": stars,
         }
+
 
 class Game(object):
     def __init__(self, logger):
@@ -168,7 +199,8 @@ class Game(object):
         self.connection_player = {}
         self.players = {}
         self.units = {}
-        self.world = World()
+        self.world = World(self)
+        self.map = Map()
         self.messages = {}
 
         self.time_factor = 3600 * 24 * 365
@@ -226,7 +258,7 @@ class Game(object):
             ))
             self.players[player_id] = player
 
-            ship = SpaceShip(player, Coords(0,0))
+            ship = SpaceShip(self, player, Coords(0, 0))
             player.units[ship.id] = ship
             self.units[ship.id] = ship
         else:
@@ -244,7 +276,8 @@ class Game(object):
         ))
 
         self.add_message(player, iu.messages.PlayerDataUpdate(
-            units=player.get_units()
+            units=player.get_units(),
+            known_data=player.known_data
         ))
 
         self.connection_player[connection_id] = player_id

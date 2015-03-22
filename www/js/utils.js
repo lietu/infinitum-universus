@@ -1,5 +1,5 @@
 define(["moment"], function (moment) {
-    var Utils = Object.create(null);
+    var Utils = Object.create({});
 
 
     Utils.LIGHT_SECOND = 1;
@@ -50,16 +50,6 @@ define(["moment"], function (moment) {
         }
     };
 
-    Utils.getUUID = function getUUID() {
-        // TODO: Get rid of this
-        var id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-
-        return id;
-    };
-
     Utils.distanceToText = function distanceToText(lightseconds) {
         var units = {
             "light seconds": Utils.LIGHT_SECOND,
@@ -81,11 +71,34 @@ define(["moment"], function (moment) {
         }
 
         return result;
-
     };
 
     Utils.timeToText = function timeToText(time) {
         return moment.duration(time, "seconds").humanize();
+    };
+
+    Utils.objectLength = function objectLength(object) {
+        var length = 0;
+        for (var key in object) {
+            if (object.hasOwnProperty(key)) {
+                length += 1;
+            }
+        }
+
+        return length;
+    };
+
+    Utils.keySearch = function keySearch(object, match) {
+        var keys = [];
+        for (var key in object) {
+            if (object.hasOwnProperty(key)) {
+                if (key.match(match)) {
+                    keys.push(key);
+                }
+            }
+        }
+
+        return keys;
     };
 
     return Utils;

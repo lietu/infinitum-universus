@@ -1,6 +1,6 @@
 define(["utils"], function (Utils) {
 
-    var Message = Utils.extend(null, {
+    var Message = Utils.extend({}, {
         cls: "Message",
 
         create: function create(game, data) {

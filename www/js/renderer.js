@@ -1,5 +1,5 @@
 define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMeter, ViewPort) {
-    var Renderer = Utils.extend(null, {
+    var Renderer = Utils.extend({}, {
         cls: "Renderer",
 
         create: function create(game) {
@@ -93,7 +93,7 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             );
 
             // add the renderer view element to the DOM
-            document.body.appendChild(this.pixiRenderer.view);
+            document.body.insertBefore(this.pixiRenderer.view, document.body.children[0]);
 
             this.resize();
             window.addEventListener("resize", function () {
@@ -102,7 +102,6 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
 
             this._registerMapDrag();
             this._registerMapZoom();
-            this._registerMapClick();
         },
 
         resize: function resize(skipPixi) {
@@ -162,6 +161,12 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             var prev = null;
             var dragging = false;
             var renderer = this;
+            var dragged = false;
+            var minDrag = 8;
+            var buffer = {
+                x: 0,
+                y: 0
+            };
 
             this.stage.mousedown = this.stage.touchstart = function (data) {
                 prev = {
@@ -175,6 +180,7 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             this.stage.mouseup = this.stage.mouseupoutside = this.stage.touchend = function (data) {
                 prev = null;
                 dragging = false;
+                dragged = false;
             };
 
             this.stage.mousemove = this.stage.touchmove = function (data) {
@@ -182,8 +188,20 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
                     var x = prev.x - data.global.x;
                     var y = prev.y - data.global.y;
 
-                    renderer.move.x += x;
-                    renderer.move.y += y;
+                    buffer.x += x;
+                    buffer.y += y;
+                }
+
+                if (Math.abs(buffer.x) + Math.abs(buffer.y) > minDrag) {
+                    dragged = true;
+                }
+
+                if (dragged) {
+                    renderer.move.x += buffer.x;
+                    renderer.move.y += buffer.y;
+
+                    buffer.x = 0;
+                    buffer.y = 0;
                 }
 
                 prev = {
@@ -224,18 +242,6 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             document.addEventListener("mousewheel", _onScroll, false);
         },
 
-        _registerMapClick: function _registerMapClick() {
-            this.stage.click = function(data) {
-                var pos = {x: data.global.x, y: data.global.y};
-                var worldPos = this._rendererToWorld(pos.x, pos.y);
-                this.game.connection.send(JSON.stringify({
-                    "type": "PlayerClick",
-                    "x": worldPos.x,
-                    "y": worldPos.y
-                }));
-            }.bind(this);
-        },
-
         _recalculateDynamicElements: function _recalculateDynamicElements() {
             if (this.worldLimits === null) {
                 return;
@@ -250,15 +256,16 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             var stars = 0;
             for (var id in this.game.world.stars) {
                 var star = this.game.world.stars[id];
+                var pos = star.position;
 
                 // Skip stars outside viewport
-                if (star.x < vp.minX || star.x > vp.maxX ||
-                    star.y < vp.minY || star.y > vp.maxY) {
+                if (pos.x < vp.minX || pos.x > vp.maxX ||
+                    pos.y < vp.minY || pos.y > vp.maxY) {
                     continue;
                 }
 
                 try {
-                    var pos = this._worldToRenderer(star.x, star.y);
+                    var screenPos = this._worldToRenderer(pos.x, pos.y);
                 } catch (e) {
                     console.error("Error with star:");
                     console.dir(star);
@@ -267,13 +274,27 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
 
                 var element = new PIXI.Sprite(this.getTexture(star.texture));
 
-                element.position.x = pos.x;
-                element.position.y = pos.y;
+                element.position.x = screenPos.x;
+                element.position.y = screenPos.y;
 
                 element.anchor.x = 0.5;
                 element.anchor.y = 0.5;
 
                 element.rotation = star.rotation;
+
+                element.interactive = true;
+
+                element.mouseover = (function(star) {
+                    return function(data) {
+                        star.mouseover();
+                    }
+                })(star);
+
+                element.mouseup = (function(star) {
+                    return function(data) {
+                        star.click();
+                    }
+                })(star);
 
                 this.elements[id] = element;
                 this.stage.addChild(element);
@@ -284,10 +305,17 @@ define(["utils", "pixi", "fpsmeter", "viewport"], function (Utils, PIXI, FPSMete
             for (var id in this.game.player.units) {
                 var ship = this.game.player.units[id];
 
+                try {
                 if (ship.position.x < vp.minX || ship.position.x > vp.maxX ||
                     ship.position.y < vp.minY || ship.position.y > vp.maxY) {
                     continue;
                 }
+                } catch(e) {
+                    console.error("Ship has no position?!");
+                    console.log(ship);
+                    continue;
+                }
+
 
                 var pos = this._worldToRenderer(ship.position.x, ship.position.y);
 

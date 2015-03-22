@@ -1,6 +1,6 @@
 define([
-    "sockjs", "utils", "messages", "world", "renderer", "player"
-], function (SockJS, Utils, Messages, World, Renderer, Player) {
+    "lodash", "sockjs", "utils", "messages", "world", "renderer", "player"
+], function (_, SockJS, Utils, Messages, World, Renderer, Player) {
 
     var assets = {
         "yellow-dwarf": {src: "assets/images/star.png"},
@@ -8,11 +8,12 @@ define([
         "red-giant": {src: "assets/images/red-giant.png"},
         "blue-giant": {src: "assets/images/blue-giant.png"},
         "space-ship": {src: "assets/images/space-ship.png"},
+        "whoosh": {category: "sfx", src: "assets/sounds/whoosh.mp3"}
     };
 
     var volumes = {
-        "general": 0.1,
-        "sfx": 0.1
+        "general": 0.3,
+        "sfx": 0.3
     };
 
     var Game = function () {
@@ -24,10 +25,11 @@ define([
             Utils.log("Game.initialize");
             this.queue = null;
             this.gameTime = 0;
+            this.objectById = {};
 
             this.world = World.create(this);
             this.renderer = Renderer.create(this);
-            this.player = Player.create(this.getPlayerId());
+            this.player = Player.create(this, this.getPlayerId());
         },
 
         start: function start() {
@@ -97,6 +99,8 @@ define([
         setPlayerId: function setPlayerId(id) {
             localStorage.setItem("playerId", id);
             this.player.id = id;
+
+            this.objectById[id] = this.player;
         },
 
         getPlayerId: function getPlayerId() {
@@ -105,6 +109,10 @@ define([
 
         _registerPlayer: function _registerPlayer() {
             var id = this.getPlayerId();
+
+            if (id) {
+                this.objectById[id] = this.player;
+            }
 
             Utils.log("Registering player ID " + id);
 

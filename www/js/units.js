@@ -1,5 +1,5 @@
 define(["utils", "planet"], function (Utils) {
-    var Unit = Utils.extend(null, {
+    var Unit = Utils.extend({}, {
         cls: "Unit",
 
         create: function create(id, data) {

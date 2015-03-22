@@ -6,7 +6,8 @@
     "pixi.js": "2.2.3",
     "fpsmeter": "0.3.1",
     "sockjs": "0.3.4",
-    "momentjs": "2.9.0"
+    "momentjs": "2.9.0",
+    "lodash": "3.5.0"
   },
   "main": "www/js/main.js",
   "moduleType": [

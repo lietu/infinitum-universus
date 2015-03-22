@@ -1,14 +1,15 @@
 define(["utils", "units"], function (Utils, Units) {
-    var Player = Utils.extend(null, {
+    var Player = Utils.extend({}, {
         cls: "Player",
 
-        create: function create(id) {
+        create: function create(game, id) {
             var _this = Object.create(this);
-            _this.initialize(id);
+            _this.initialize(game, id);
             return _this;
         },
 
-        initialize: function initialize(id) {
+        initialize: function initialize(game, id) {
+            this.game = game;
             this.id = id;
             this.units = {}
         },
@@ -20,12 +21,24 @@ define(["utils", "units"], function (Utils, Units) {
                     if (id in this.units) {
                         this.units[id].update(unitData);
                     } else {
-                        this.units[id] = Units[unitData.type].create(id, data);
+                        var unit = Units[unitData.type].create(id, data);
+                        this.units[id] = unit;
+                        this.game.objectById[id] = unit;
                     }
+                }
+            }
+
+            if ("known_data" in data) {
+                for (var id in data.known_data) {
+                    if (!(id in this.game.objectById)) {
+                        throw new Error("Could not find object " + id);
+                    }
+
+                    this.game.objectById[id].update(data.known_data[id]);
                 }
             }
         }
     });
 
     return Player;
-})
+});

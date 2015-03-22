@@ -1,5 +1,5 @@
 define(["utils", "stars"], function (Utils, Stars) {
-    var World = Utils.extend(null, {
+    var World = Utils.extend({}, {
         cls: "World",
 
         create: function create(game) {
@@ -18,11 +18,13 @@ define(["utils", "stars"], function (Utils, Stars) {
             this.height = data.height;
             this.stars = {};
             for (var id in data.stars) {
-                var star = data.stars[id];
-                this.stars[id] = Stars[star.type].create(id, star);
+                var starData = data.stars[id];
+                var star = Stars[starData.type].create(this.game, id, starData);
+                this.stars[id] = star;
+                this.game.objectById[id] = star;
             }
         }
     });
 
     return World;
-})
+});

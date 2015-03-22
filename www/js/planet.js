@@ -1,5 +1,5 @@
 define(["utils"], function (Utils) {
-    var Planet = Utils.extend(null, {
+    var Planet = Utils.extend({}, {
         cls: "Planet",
 
         create: function create(id, data) {
@@ -12,8 +12,14 @@ define(["utils"], function (Utils) {
             this.id = id;
             this.x = data.x;
             this.y = data.y;
+            this.name = data.name;
+            this.orbit = data.orbit;
+        },
+
+        update: function update(data) {
+            this.name = data.name;
         }
     });
 
     return Planet;
-})
+});

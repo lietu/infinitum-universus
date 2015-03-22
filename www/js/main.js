@@ -5,7 +5,9 @@
             "fpsmeter": "lib/fpsmeter/dist/fpsmeter",
             "pixi": "lib/pixi.js/bin/pixi.dev",
             "sockjs": "lib/sockjs/sockjs",
-            "async": "lib/async/lib/async",
+            "lodash": "lib/lodash/lodash",
+            "rivets": "lib/rivets/dist/rivets",
+            "sightglass": "lib/sightglass/index",
             "moment": "lib/momentjs/moment"
         },
         shim: {

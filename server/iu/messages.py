@@ -41,10 +41,11 @@ class WorldData(ServerMessage):
 
 
 class PlayerDataUpdate(ServerMessage):
-    DATA_KEYS = ["units"]
+    DATA_KEYS = ["units", "known_data"]
 
-    def __init__(self, units):
+    def __init__(self, units, known_data):
         self.units = {}
+        self.known_data = known_data
 
         for id in units:
             self.units[id] = units[id].to_dict()

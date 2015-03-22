@@ -1,5 +1,5 @@
 define(["utils"], function (Utils) {
-    var ViewPort = Utils.extend(null, {
+    var ViewPort = Utils.extend({}, {
         cls: "ViewPort",
 
         create: function create(renderer, worldLimits, resolution) {
